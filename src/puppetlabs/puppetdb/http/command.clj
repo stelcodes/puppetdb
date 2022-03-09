@@ -30,7 +30,8 @@
    "replace catalog inputs" 1
    "replace facts" 4
    "store report" 5
-   "deactivate node" 3})
+   "deactivate node" 3
+   "configure policies" 1})
 
 (def valid-commands-str (str/join ", " (sort (vals command-names))))
 
@@ -45,7 +46,9 @@
           ;; The checksum here is vestigial. It is no longer checked
           valid-params #{"checksum" "secondsToWaitForCompletion" "certname"
                          "command" "version" "producer-timestamp"}
-          required-params #{"certname" "version" "command"}
+          required-params (if (= command "configure policies")
+                            #{"command" "version"}
+                            #{"command" "version" "certname"})
           invalid-params (seq (set/difference request-params valid-params))
           missing-params (seq (set/difference required-params request-params))
           min-supported-version (min-supported-commands command)]
@@ -66,7 +69,8 @@
                    (tru "Command has invalid parameters: {0}."
                         (str/join ", " invalid-params))]))
 
-       (or (not (string? certname)) (str/blank? certname))
+       (and (required-params "certname")
+            (or (not (string? certname)) (str/blank? certname)))
        (http/bad-request-response
         (str/join " "
                   [(tru "Command {0} for certname {1} is invalid."

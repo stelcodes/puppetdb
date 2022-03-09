@@ -41,7 +41,8 @@
    "facts" "replace facts"
    "rm-node" "deactivate node"
    "report" "store report"
-   "set-expire" "configure expiration"})
+   "set-expire" "configure expiration"
+   "policies" "configure policies"})
 
 (def puppetdb-command->metadata-command
   (set/map-invert metadata-command->puppetdb-command))
@@ -219,7 +220,7 @@
   hashable proxy for the original."
   {:command (apply s/enum (vals metadata-command->puppetdb-command))
    :version s/Int
-   :certname s/Str
+   :certname (s/maybe s/Str)
    :producer-ts (s/maybe pls/Timestamp)
    :callback (s/=> s/Any s/Any)
    :command-stream java.io.InputStream
@@ -229,7 +230,7 @@
   "Validating constructor function for command requests"
   [command :- s/Str
    version :- s/Int
-   certname :- s/Str
+   certname :- (s/maybe s/Str)
    producer-ts :- (s/maybe s/Str)
    compression :- compression-file-extension-schema
    callback :- (s/=> s/Any s/Any)
@@ -316,6 +317,7 @@
   [q
    received :- pls/Timestamp
    command-req :- command-req-schema]
+  (println command-req)
   (try
    (stock/store q
                 (:command-stream command-req)

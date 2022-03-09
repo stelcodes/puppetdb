@@ -8,7 +8,8 @@
    :replace-catalog-inputs "replace catalog inputs"
    :replace-facts   "replace facts"
    :deactivate-node "deactivate node"
-   :store-report    "store report"})
+   :store-report    "store report"
+   :configure-policies "configure policies"})
 
 (def command-keys (set/map-invert command-names))
 
@@ -18,7 +19,8 @@
    "replace catalog" #{4 5 6 7 8 9}
    "replace catalog inputs" #{1}
    "store report" #{3 4 5 6 7 8}
-   "deactivate node" #{1 2 3}})
+   "deactivate node" #{1 2 3}
+   "configure policies" #{1}})
 
 (def latest-catalog-version (apply max (supported-command-versions "replace catalog")))
 (def latest-report-version (apply max (supported-command-versions "store report")))
@@ -26,13 +28,15 @@
 (def latest-configure-expiration-version (apply max (supported-command-versions "configure expiration")))
 (def latest-catalog-inputs-version (apply max (supported-command-versions "replace catalog inputs")))
 (def latest-deactivate-node-version (apply max (supported-command-versions "deactivate node")))
+(def latest-configure-policies-version (apply max (supported-command-versions "configure policies")))
 
 (def latest-command-versions
   {:replace_catalog latest-catalog-version
    :store_report latest-report-version
    :replace_facts latest-facts-version
    :configure_expiration latest-configure-expiration-version
-   :replace_catalog_inputs latest-catalog-inputs-version})
+   :replace_catalog_inputs latest-catalog-inputs-version
+   :configure_policies latest-configure-policies-version})
 
 (defn normalize-command-name
   "Normalize command name from an incoming request's query param"

@@ -25,7 +25,7 @@
             [puppetlabs.puppetdb.testutils.nodes :refer :all]
             [puppetlabs.puppetdb.random :as random]
             [puppetlabs.puppetdb.scf.partitioning :refer [get-partition-names]]
-            [puppetlabs.puppetdb.scf.storage :refer :all]
+            [puppetlabs.puppetdb.scf.storage :as scfs :refer :all]
             [clojure.test :refer :all]
             [clojure.math.combinatorics :refer [combinations subsets]]
             [metrics.timers :refer [time! timer]]
@@ -2205,3 +2205,16 @@
       (sql/execute! jdbc/*db* "set local lock_timeout = 300")
       (is (= 1000 (call-with-lock-timeout get-lock-timeout 1000))))
     (is (= orig (get-lock-timeout)))))
+
+(deftest add-node-policies-test
+  (with-test-db
+    (let [tstamp (now)
+          get-result (fn []
+                       (-> "SELECT certname, changed, version, policies FROM desired_policies"
+                           query-to-vec
+                           first
+                           (update :policies #(sutils/parse-db-json %))))]
+      (scfs/add-certname! "foo.com")
+      (scfs/add-node-policies! "foo.com" tstamp 1 ["policy-a" "policy-b"])
+      (= {:certname "foo.com" :changed tstamp :version 1 :policies ["policy-a" "policy-b"]}
+         (get-result)))))

@@ -1859,6 +1859,18 @@
           ;; in the DLO
           (throw e)))))))
 
+(defn add-node-policies! [certname changed-timestamp version policies]
+  (let [policies-json (json/generate-string policies)
+        changed (to-timestamp changed-timestamp)]
+    (jdbc/do-prepared
+     (str "INSERT INTO desired_policies"
+          "  (certname, changed, version, policies)"
+          "  VALUES (?, ?, ?, ?::jsonb)"
+          "  ON CONFLICT (certname) DO UPDATE"
+          "    SET changed = ?, version = ?, policies = ?::jsonb"
+          "    WHERE desired_policies.changed < ?")
+     [certname changed version policies-json changed version policies-json changed])))
+
 (def fact-path-gc-lock-timeout-ms
   (env-config-for-db-ulong "PDB_FACT_PATH_GC_SQL_LOCK_TIMEOUT_MS" nil))
 

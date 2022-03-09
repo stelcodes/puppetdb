@@ -316,7 +316,8 @@
                               [1 2]))
             :let [bad-request {:body ::ignored
                                :params (into {} bad-params)}
-                  {:keys [status body]} (validate bad-request)
+                  {:keys [status body] :as x} (validate bad-request)
+                  _ (println "DEBUG: " x)
                   {:strs [error]} (json/parse-string body)]]
       (is (= http/status-bad-request status))
       (is (re-find #"missing required parameters" error)))))

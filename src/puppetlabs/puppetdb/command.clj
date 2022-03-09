@@ -63,7 +63,7 @@
             [puppetlabs.kitchensink.core :as kitchensink]
             [puppetlabs.puppetdb.cheshire :as json]
             [puppetlabs.puppetdb.jdbc :as jdbc]
-            [puppetlabs.puppetdb.schema :refer [defn-validated]]
+            [puppetlabs.puppetdb.schema :as pls :refer [defn-validated]]
             [puppetlabs.puppetdb.time :as fmt-time]
             [puppetlabs.puppetdb.time :as tcoerce]
             [puppetlabs.puppetdb.time :as time
@@ -459,6 +459,29 @@
       (log-command-processed-messsage id received start-time
                                       :configure-expiration certname))))
 
+;; Configure policies
+
+(def configure-policies-schema {:specification
+                                {s/Str {:version s/Str
+                                        :changed pls/Timestamp
+                                        :policies [s/Str]}}
+                                (s/optional-key :producer_timestamp)
+                                (s/maybe pls/Timestamp)})
+
+(defn prep-configure-policies [command]
+  (println "PREP_COMMAND=" command)
+  (upon-error-throw-fatality
+   (-> command
+       (update :payload #(s/validate configure-policies-schema %))
+       (update-in [:payload :producer_timestamp] #(or % (now))))))
+
+(defn exec-configure-policies
+  [{:keys [id received payload]} start-time db conn-status]
+  (let [{:keys [specification] #_producer-timestamp #_:producer_timestamp} payload]
+    (doseq [[certname {:keys [version changed policies]}] specification]
+      (scf-storage/add-node-policies! certname changed version policies))
+    (log-command-processed-messsage id received start-time :configure-policies nil)))
+
 ;; ## Command processors
 
 (defn prep-command [{:keys [command] :as cmd} options-config]
@@ -470,7 +493,8 @@
     "store report" (prep-store-report cmd)
     "deactivate node" (prep-deactivate-node cmd)
     "configure expiration" (prep-configure-expiration cmd)
-    "replace catalog inputs" (prep-replace-catalog-inputs cmd)))
+    "replace catalog inputs" (prep-replace-catalog-inputs cmd)
+    "configure policies" (prep-configure-policies cmd)))
 
 (defn supported-command? [{:keys [command version] :as cmd}]
   (some-> (supported-command-versions command) (get version)))
@@ -488,7 +512,8 @@
                "store report" (partial exec-store-report options-config)
                "deactivate node" exec-deactivate-node
                "configure expiration" exec-configure-expiration
-               "replace catalog inputs" exec-replace-catalog-inputs)]
+               "replace catalog inputs" exec-replace-catalog-inputs
+               "configure policies" exec-configure-policies)]
     (try
       (exec cmd start db conn-status)
       (catch SQLException ex
@@ -788,6 +813,7 @@
                                  shutdown-for-ex options-config))))
       (catch ExceptionInfo ex
         (let [data (ex-data ex)]
+          (println ex)
           (case (:kind data)
             ::retry (retry ex)
             ::queue/parse-error

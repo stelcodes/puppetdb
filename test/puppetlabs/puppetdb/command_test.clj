@@ -2086,3 +2086,74 @@
           (is (= true (deref ready-to-go? default-timeout-ms false)))
           (tkapp/stop *server*)
           (is (= true @requested-shutdown?)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Configure Policies Command Tests
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def valid-configure-policies-payloads
+  [{:specification {}}
+   {:specification
+    {"certname-1" {:version "baz-1"
+                   :changed (now)
+                   :policies ["policy-1" "policy-2"]}}
+    :producer_timestamp (now)}
+   {:specification
+    {"certname-1" {:version "baz-1"
+                   :changed (now)
+                   :policies ["policy-1" "policy-2"]}}}
+   {:specification
+    {"certname-1" {:version "baz-1"
+                   :changed (now)
+                   :policies []}}}
+   {:specification
+    {"certname-1" {:version "baz-1"
+                   :changed (now)
+                   :policies []}
+     "certname-2" {:version "baz-1"
+                   :changed (now)
+                   :policies []}}}])
+
+(def invalid-configure-policies-payloads
+  [{}
+   {:foo "bar"}
+   {:specification
+    {"certname-1" {:changed (now)
+                   :policies []}}}
+   {:specification
+    {"certname-1" {:version "baz-1"
+                   :policies []}}}
+   {:specification
+    {"certname-1" {:version "baz-1"
+                   :changed (now)}}}
+   {:specification
+    {"certname-1" {:version "baz-1"
+                   :changed (now)
+                   :policies [1 2 3]}}}])
+
+(deftest configure-policies-schema-test
+  (doseq [p valid-configure-policies-payloads]
+   (is (s/validate cmd/configure-policies-schema p))
+   (is (cmd/prep-configure-policies {:payload p})))
+  (doseq [p invalid-configure-policies-payloads]
+    (is (thrown? Exception (s/validate cmd/configure-policies-schema p)))))
+
+#_(deftest prep-configure-policies-test
+  (doseq [p valid-configure-policies-payloads
+          :let [result (cmd/prep-configure-policies {:payload p})]]
+    (is (s/validate pls/timestamp))))
+
+(deftest exec-configure-policies-test
+  (doseq [p valid-configure-policies-payloads]
+    (println "P=" p)
+    (let [make-cmd-ref #(tqueue/configure-policies->command-req 1 (cmd/prep-configure-policies {:payload p}))]
+          (with-message-handler {:keys [handle-message dlo delay-pool q]}
+     (handle-message (queue/store-command q (make-cmd-ref)))
+     (println (query-to-vec "SELECT changed, certname, version, policies FROM desired_policies"))))))
+
+(comment (configure-policies-schema-test))
+
+#_(deftest configure-policies-test
+  (scf-store/add-node-policies! "foo.com" (now) "xyz" ["policy-a" "policy-b"]))

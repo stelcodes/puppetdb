@@ -92,3 +92,14 @@
                         ""
                         identity
                         (coerce-to-stream command)))
+
+(defn configure-policies->command-req [version command]
+  (q/create-command-req "configure policies"
+                        version
+                        "null"
+                        (ks/timestamp (now))
+                        ""
+                        identity
+                        (coerce-to-stream command)))
+
+(comment (configure-policies->command-req 1 {:specification {}}))
